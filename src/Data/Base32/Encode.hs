@@ -1,5 +1,5 @@
 module Data.Base32.Encode
-  (
+  ( encode
   ) where
 
 import qualified Data.Bits             as BI
@@ -9,29 +9,49 @@ import           Data.Function         ((&))
 import qualified Data.Vector.Storable  as VS
 import           Data.Word
 
-
 encode :: BS.ByteString -> BS.ByteString
 encode from =
-  let
-    vec = from & convertToVector & padVector
-  in
-    accumulateResult vec
+  helper BS.empty from
+  where
+    helper converted toDo
+      | toDo == BS.empty =
+        converted
+      | otherwise =
+        let
+          (nextPart, rest) = BS.splitAt 5 toDo
+          convNextPart = encode5Orless nextPart
+        in
+          helper (converted `BS.append` convNextPart) rest
 
-accumulateResult :: VS.Vector Word8  -> BS.ByteString
-accumulateResult vec =
+encode5Orless :: BS.ByteString -> BS.ByteString
+encode5Orless from
+  | BS.length from <= 5 =
+    let
+      vec = from & convertToVector
+      paddedVec = vec & padVector
+    in
+      accumulateResult (numToPad vec) paddedVec
+  | otherwise =
+    error "This funciton expects a bytestring of 5 or less chars"
+
+type Padding = Int
+accumulateResult :: Padding -> VS.Vector Word8 -> BS.ByteString
+accumulateResult paddedBits vec =
   let
     resStr = helper [] vec 0
+    numPaddedChars = (paddedBits * 8) `div` 5
+    overrodeStr = if paddedBits /= 5 then take (8 - numPaddedChars) resStr else resStr
+    paddingChars = if paddedBits /= 5 then replicate numPaddedChars '=' else ""
   in
-    BSC.pack resStr
+    (BSC.pack overrodeStr) `BS.append` (BSC.pack paddingChars)
   where
     helper :: [ Char ] -> VS.Vector Word8 -> CurrentIndex -> [ Char ]
     helper soFar vec idx
       | vec /= VS.empty =
         let
           (c, v, i) = getNextFiveBits vec idx
-          i' = if i >= 7 then 0 else i
         in
-          helper (soFar ++ [c]) v i'
+          helper (soFar ++ [c]) v i
       | otherwise =
         soFar
 
@@ -44,13 +64,20 @@ shiftLBy = flip BI.shiftL
 shiftRBy :: Int -> Word8 -> Word8
 shiftRBy = flip BI.shiftR
 
+numToPad :: VS.Vector Word8 -> Int
+numToPad vec = 5 - ((VS.length vec) `mod` 5)
+
 padVector :: VS.Vector Word8 -> VS.Vector Word8
 padVector vec =
   let
-    numToPad = 5 - ((VS.length vec) `mod` 5)
-    padVec = VS.replicate numToPad (0 :: Word8)
+    padVec = if (numToPad vec) == 5 then VS.empty else VS.replicate (numToPad vec) (0 :: Word8)
   in
     vec VS.++ padVec
+
+-- idx values as it goes through the 40 bits
+-- ____ _5__ __2_ ___7 ____ 4___ _1__ __6_ ___3 ____
+-- 0100 0001 0000 0000 0000 0000 0000 0000 0000 0000
+-- 0000 0111 1122 2223 3333 4444 4555 5566 6667 7777
 
 type CurrentIndex = Int
 
@@ -59,24 +86,28 @@ getNextFiveBits vec curIdx
   | curIdx <= 3 && not (VS.null vec) =
     let
       char =
-        charFromFirst5FromWord8 $ shiftLBy curIdx $ VS.head vec
+        charFromFirst5OfWord8 $ shiftLBy curIdx $ VS.head vec
+
+      vec' = if curIdx == 3 then VS.tail vec else vec
     in
-      (char, vec, curIdx + 5)
+      (char, vec', curIdx + 5)
   | curIdx <= 7 && VS.length vec >= 2 =
     let
       idxSnd = 5 - (8 - curIdx)
       fst = vec VS.! 0 & shiftLBy curIdx
       snd = vec VS.! 1 & shiftRBy (8 - idxSnd) & shiftLBy 3
-      char = (0 :: Word8) BI..|. fst BI..|. snd & charFromFirst5FromWord8
+      char = (0 :: Word8) BI..|. fst BI..|. snd & charFromFirst5OfWord8
     in
       (char, VS.tail vec, idxSnd)
   | otherwise =
     error "not enough bits"
 
-charFromFirst5FromWord8 :: Word8 -> Char
-charFromFirst5FromWord8 byte =
+charFromFirst5OfWord8 :: Word8 -> Char
+charFromFirst5OfWord8 byte =
   byte & shiftRBy 3 & toChar
 {-
+steps to get the 5 bits i want depending on idx
+
 0123 4567
 0
 0100 0001
