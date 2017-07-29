@@ -2,13 +2,13 @@ name:                haskell-base32-string
 version:             0.1.0.0
 -- synopsis:
 -- description:
-homepage:            https://github.com/githubuser/haskell-base32-string#readme
+homepage:            https://github.com/sbditto85/haskell-base32-string#readme
 license:             BSD3
 license-file:        LICENSE
-author:              Author name here
-maintainer:          example@example.com
-copyright:           2017 Author name here
-category:            Web
+author:              Casey Allred
+maintainer:          sbditto@gmail.com
+copyright:           2017 Casey Allred
+category:            Data
 build-type:          Simple
 extra-source-files:  README.md
 cabal-version:       >=1.10
@@ -33,4 +33,4 @@ test-suite tests
 
 source-repository head
   type:     git
-  location: https://github.com/githubuser/haskell-base32-string
+  location: https://github.com/sbditto85/haskell-base32-string
