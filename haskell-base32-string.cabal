@@ -16,10 +16,10 @@ cabal-version:       >=1.10
 library
   hs-source-dirs:      src
   exposed-modules:     Data.Base32.Encode
-  build-depends:       base >= 4.7 && < 5
-                     , bytestring
-                     , memory
-                     , vector
+  build-depends:       base       >= 4.7  && < 5
+                     , bytestring >= 0.10 && < 0.11
+                     , memory     >= 0.14 && < 0.15
+                     , vector     >= 0.12 && < 0.13
   default-language:    Haskell2010
 
 test-suite tests
