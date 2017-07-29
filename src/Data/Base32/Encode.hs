@@ -10,9 +10,47 @@ import qualified Data.Vector.Storable  as VS
 import           Data.Word
 
 
-convertToVector :: String -> VS.Vector Word8
-convertToVector = VS.fromList . BS.unpack . BSC.pack
+encode :: BS.ByteString -> BS.ByteString
+encode from =
+  let
+    vec = from & convertToVector & padVector
+  in
+    accumulateResult vec
 
+accumulateResult :: VS.Vector Word8  -> BS.ByteString
+accumulateResult vec =
+  let
+    resStr = helper [] vec 0
+  in
+    BSC.pack resStr
+  where
+    helper :: [ Char ] -> VS.Vector Word8 -> CurrentIndex -> [ Char ]
+    helper soFar vec idx
+      | vec /= VS.empty =
+        let
+          (c, v, i) = getNextFiveBits vec idx
+          i' = if i >= 7 then 0 else i
+        in
+          helper (soFar ++ [c]) v i'
+      | otherwise =
+        soFar
+
+convertToVector :: BS.ByteString -> VS.Vector Word8
+convertToVector = VS.fromList . BS.unpack
+
+shiftLBy :: Int -> Word8 -> Word8
+shiftLBy = flip BI.shiftL
+
+shiftRBy :: Int -> Word8 -> Word8
+shiftRBy = flip BI.shiftR
+
+padVector :: VS.Vector Word8 -> VS.Vector Word8
+padVector vec =
+  let
+    numToPad = 5 - ((VS.length vec) `mod` 5)
+    padVec = VS.replicate numToPad (0 :: Word8)
+  in
+    vec VS.++ padVec
 
 type CurrentIndex = Int
 
@@ -21,15 +59,15 @@ getNextFiveBits vec curIdx
   | curIdx <= 3 && not (VS.null vec) =
     let
       char =
-        charFromFirst5FromWord8 $ flip BI.shiftL curIdx $ VS.head vec
+        charFromFirst5FromWord8 $ shiftLBy curIdx $ VS.head vec
     in
       (char, vec, curIdx + 5)
-  | VS.length vec > 2 =
+  | curIdx <= 7 && VS.length vec >= 2 =
     let
-      fst = vec VS.! 0
-      snd = vec VS.! 1
-      idxSnd = 5 - (7-curIdx)
-      char = 'A'
+      idxSnd = 5 - (8 - curIdx)
+      fst = vec VS.! 0 & shiftLBy curIdx
+      snd = vec VS.! 1 & shiftRBy (8 - idxSnd) & shiftLBy 3
+      char = (0 :: Word8) BI..|. fst BI..|. snd & charFromFirst5FromWord8
     in
       (char, VS.tail vec, idxSnd)
   | otherwise =
@@ -37,7 +75,7 @@ getNextFiveBits vec curIdx
 
 charFromFirst5FromWord8 :: Word8 -> Char
 charFromFirst5FromWord8 byte =
-  byte & flip BI.shiftR 3 & toChar
+  byte & shiftRBy 3 & toChar
 {-
 0123 4567
 0
