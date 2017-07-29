@@ -6,3 +6,4 @@ Goals
 -----
 - Add decode
 - Optimize
+- Add tests (including fuzzy tests)
