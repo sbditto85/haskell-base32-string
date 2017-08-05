@@ -1,5 +1,5 @@
 name:                haskell-base32-string
-version:             0.1.0.0
+version:             0.2.0.0
 -- synopsis:
 -- description:
 homepage:            https://github.com/sbditto85/haskell-base32-string#readme
@@ -15,7 +15,7 @@ cabal-version:       >=1.10
 
 library
   hs-source-dirs:      src
-  exposed-modules:     Data.Base32.Encode
+  exposed-modules:     Data.ByteString.Base32
   build-depends:       base       >= 4.7  && < 5
                      , bytestring >= 0.10 && < 0.11
                      , memory     >= 0.14 && < 0.15

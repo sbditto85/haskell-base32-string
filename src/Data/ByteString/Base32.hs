@@ -1,4 +1,4 @@
-module Data.Base32.Encode
+module Data.ByteString.Base32
   ( encode
   ) where
 
